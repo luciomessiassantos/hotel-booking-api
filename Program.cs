@@ -7,11 +7,17 @@ using Microsoft.Extensions.Caching.Hybrid;
 
 var builder = WebApplication.CreateBuilder(args);
 string corsPolicySpecifiedOrigins = "_bookingAPIOrigins";
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+var databaseConnectionString = builder.Configuration.GetConnectionString("Default")!;
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis")!;
+
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();  
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+});
 
 builder.Services.AddHybridCache(options =>
 {
@@ -34,7 +40,7 @@ builder.Services.AddControllers()
 
 
 builder.Services.AddDbContext<BookingDbContext>(cfg =>
-    cfg.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL")));
+    cfg.UseNpgsql(databaseConnectionString));
 
 
 builder.Services.AddMediatR(cfg => 
@@ -59,7 +65,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -79,6 +85,8 @@ app.UseAuthorization();
 app.UseAuthentication();
 app.MapControllers();
 
-app.Logger.LogInformation("API Docs running on http://localhost:5174/swagger ");
+var url = "http://localhost:5174";
+
+app.Logger.LogInformation($"\n API Docs running on  {url}/swagger  \n");
 
 app.Run();

@@ -4,9 +4,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookingAPI.src.Modules.Booking.Infrastructure;
 
-public class BookingDbContext : DbContext
+public class BookingDbContext : ApplicationDbContext
 {
-    public BookingDbContext(DbContextOptions<BookingDbContext> options) : base(options) { }
+    public BookingDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    {   }
+
+    // public BookingDbContext(DbContextOptions<BookingDbContext> options) : base(options) { }
 
     public DbSet<Hotel> Hotels => Set<Hotel>();
     public DbSet<Room> Rooms => Set<Room>();
@@ -15,10 +18,10 @@ public class BookingDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        ConfigureAuditableEntity<Hotel>(modelBuilder, "hotels");
-        ConfigureAuditableEntity<Room>(modelBuilder, "rooms");
-        ConfigureAuditableEntity<Guest>(modelBuilder, "guests");
-        ConfigureAuditableEntity<Reservation>(modelBuilder, "reservations");
+        ConfigureAuditableEntity<Hotel, Guid>(modelBuilder, "hotels");
+        ConfigureAuditableEntity<Room, Guid>(modelBuilder, "rooms");
+        ConfigureAuditableEntity<Guest, Guid>(modelBuilder, "guests");
+        ConfigureAuditableEntity<Reservation, Guid>(modelBuilder, "reservations");
 
         ConfigureHotel(modelBuilder);
         ConfigureRoom(modelBuilder);
@@ -29,36 +32,36 @@ public class BookingDbContext : DbContext
     }
 
 
-    private static void ConfigureAuditableEntity<T>(ModelBuilder modelBuilder, string tableName)
-        where T : AuditableEntity<Guid>
-    {
-        modelBuilder.Entity<T>(entity =>
-        {
-            entity.ToTable(tableName);
+    // private static void ConfigureAuditableEntity<T>(ModelBuilder modelBuilder, string tableName)
+    //     where T : AuditableEntity<Guid>
+    // {
+    //     modelBuilder.Entity<T>(entity =>
+    //     {
+    //         entity.ToTable(tableName);
 
-            entity.HasKey(e => e.Id);
+    //         entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.CreatedAt)
-                .IsRequired();
+    //         entity.Property(e => e.CreatedAt)
+    //             .IsRequired();
 
-            entity.Property(e => e.UpdatedAt)
-                .IsRequired();
+    //         entity.Property(e => e.UpdatedAt)
+    //             .IsRequired();
 
-            entity.Property(e => e.RowVersion)
-                .IsRowVersion()
-                .IsConcurrencyToken();
+    //         entity.Property(e => e.RowVersion)
+    //             .IsRowVersion()
+    //             .IsConcurrencyToken();
 
-            entity.Property(e => e.IsDeleted)
-                .IsRequired()
-                .HasDefaultValue(false);
+    //         entity.Property(e => e.IsDeleted)
+    //             .IsRequired()
+    //             .HasDefaultValue(false);
 
-            entity.Property(e => e.DeletedAt);
-            entity.Property(e => e.DeletedBy);
+    //         entity.Property(e => e.DeletedAt);
+    //         entity.Property(e => e.DeletedBy);
 
 
-            entity.HasQueryFilter(e => !e.IsDeleted);
-        });
-    }
+    //         entity.HasQueryFilter(e => !e.IsDeleted);
+    //     });
+    // }
 
 
 
@@ -175,34 +178,34 @@ public class BookingDbContext : DbContext
 
 
 
-    public override int SaveChanges()
-    {
-        OnSaving();
-        return base.SaveChanges();
-    }
+    // public override int SaveChanges()
+    // {
+    //     OnSaving();
+    //     return base.SaveChanges();
+    // }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        OnSaving();
-        return await base.SaveChangesAsync(cancellationToken);
-    }
+    // public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // {
+    //     OnSaving();
+    //     return await base.SaveChangesAsync(cancellationToken);
+    // }
 
-    private void OnSaving()
-    {
-        var entries = ChangeTracker.Entries<AuditableEntity<Guid>>();
-        foreach (var entry in entries)
-        {
-            if (entry.State == EntityState.Added)
-            {
-                entry.Entity.CreatedAt = DateTimeOffset.UtcNow;
-                entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
-            }
+    // private void OnSaving()
+    // {
+    //     var entries = ChangeTracker.Entries<AuditableEntity<Guid>>();
+    //     foreach (var entry in entries)
+    //     {
+    //         if (entry.State == EntityState.Added)
+    //         {
+    //             entry.Entity.CreatedAt = DateTimeOffset.UtcNow;
+    //             entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
+    //         }
 
-            if (entry.State == EntityState.Modified)
-            {
-                entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
-            }
+    //         if (entry.State == EntityState.Modified)
+    //         {
+    //             entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
+    //         }
 
-        }
-    }
+    //     }
+    // }
 }

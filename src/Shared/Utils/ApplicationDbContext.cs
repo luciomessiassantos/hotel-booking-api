@@ -1,17 +1,17 @@
-
+namespace BookingAPI.src.Shared.Utils;
 
 using BookingAPI.src.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
 
-public class ApplicationDbContext : DbContext
+/*
+
+    Reusable class for multiple DbContexts
+
+*/
+
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {
-        
-    }
-
-
-    private static void ConfigureAuditableEntity<T, TKey>(ModelBuilder modelBuilder, string tableName)
+    protected static void ConfigureAuditableEntity<T, TKey>(ModelBuilder modelBuilder, string tableName)
         where T : AuditableEntity<TKey>
     {
         modelBuilder.Entity<T>(entity =>

@@ -3,7 +3,7 @@ using BookingAPI.src.Shared.Utils;
 
 namespace BookingAPI.src.Modules.Booking.Domain;
 
-public class Reservation : AuditableEntity
+public class Reservation : AuditableEntity<Guid>
 {
 
     public Guid GuestId { get; set; }

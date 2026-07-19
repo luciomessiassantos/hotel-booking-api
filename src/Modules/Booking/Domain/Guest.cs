@@ -2,7 +2,7 @@ using BookingAPI.src.Shared.Utils;
 
 namespace BookingAPI.src.Modules.Booking.Domain;
 
-public class Guest : AuditableEntity
+public class Guest : AuditableEntity<Guid>
 {
     public required string FullName { get; set; }
     public required string Email { get; set; }

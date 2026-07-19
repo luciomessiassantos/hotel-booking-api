@@ -30,7 +30,7 @@ public class BookingDbContext : DbContext
 
 
     private static void ConfigureAuditableEntity<T>(ModelBuilder modelBuilder, string tableName)
-        where T : AuditableEntity
+        where T : AuditableEntity<Guid>
     {
         modelBuilder.Entity<T>(entity =>
         {
@@ -189,7 +189,7 @@ public class BookingDbContext : DbContext
 
     private void OnSaving()
     {
-        var entries = ChangeTracker.Entries<AuditableEntity>();
+        var entries = ChangeTracker.Entries<AuditableEntity<Guid>>();
         foreach (var entry in entries)
         {
             if (entry.State == EntityState.Added)
@@ -202,6 +202,7 @@ public class BookingDbContext : DbContext
             {
                 entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
             }
+
         }
     }
 }

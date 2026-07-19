@@ -2,17 +2,24 @@ using BookingAPI.src.Modules.Booking.Application.Services.Interfaces;
 using BookingAPI.src.Modules.Booking.Domain;
 using BookingAPI.src.Modules.Booking.Domain.Dto;
 using BookingAPI.src.Modules.Booking.Domain.Dto.HotelDtos;
+using BookingAPI.src.Modules.Booking.Domain.Mappers;
 using BookingAPI.src.Modules.Booking.Infrastructure;
 using BookingAPI.src.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace BookingAPI.src.Modules.Booking.Application.Services.Implementations;
 
 public class HotelService(
-    BookingDbContext context
+    BookingDbContext context,
+    HybridCache cache,
+    ILogger<HotelService> logger
 ) : IHotelService
 {
-    public async Task<Hotel> Create(CreateHotelDto request)
+
+    const string CACHE_TAG = "hotels";
+    const string LIST_CACHE_TAG = "hotels_list";
+    public async Task<HotelResponseDto> Create(CreateHotelDto request)
     {
         var entity = new Hotel
         {
@@ -23,38 +30,41 @@ public class HotelService(
             StarRating = 0
         };
 
-        var result = await context.Hotels.AddAsync(entity);
+        context.Hotels.Add(entity);
         await context.SaveChangesAsync();
 
-        return result.Entity;
+        var hotelDto = HotelMapper.ToDto(entity);
+
+        logger.LogInformation("Invalidating cache for tags: {CACHE_TAG}, name:{Name}.", CACHE_TAG, request.Name);
+        await cache.RemoveByTagAsync(LIST_CACHE_TAG);
+
+        await cache.SetAsync(
+            $"hotel:{hotelDto.Id}",
+            hotelDto,
+            tags: [CACHE_TAG]
+        );
+
+        return hotelDto;
     }
 
     public async Task<HotelResponseDto?> GetById(Guid id)
     {
-        return await context.Hotels
-            .Select(h => new HotelResponseDto(
-                h.Id,
-                h.Name,
-                h.Address,
-                h.StarRating,
-                h.Amenities,
-                h.Rooms.Select(r => new RoomResponseDto(
-                    r.Id,
-                    r.HotelId,
-                    r.Code,
-                    r.Type,
-                    r.Capacity,
-                    r.PricePerNight,
-                    r.IsAvailable
-                )).ToList()
-            ))
-            .FirstOrDefaultAsync(h => h.Id == id);
+        return await cache.GetOrCreateAsync(
+            $"hotel:{id}",
+            async ct => await context.Hotels
+            .AsNoTracking()
+            .Select(h => HotelMapper.ToDto(h))
+            .FirstOrDefaultAsync(h => h.Id == id, ct),
+            tags: [CACHE_TAG],
+            cancellationToken: default
+        );
+
     }
 
     public async Task<PaginatedResult<HotelResponseDto>> List(HotelQueryDto request)
     {
-                
         var queryable = context.Hotels
+            .AsNoTracking()
             .WhereIf(request.Term is not null, e => e.Name.Contains(request.Term!))
             .WhereIf(request.Street is not null, e => e.Address.Street.Contains(request.Street!))
             .WhereIf(request.City is not null, e => e.Address.City.Contains(request.City!))
@@ -70,28 +80,32 @@ public class HotelService(
             queryable = queryable.IgnoreQueryFilters();
         }
 
-        int totalCount = await queryable.CountAsync();
+        // Chave de cache composta de dinâmica: Cada filtro vira um fragmento identificador único
+        var cacheKey = $"hotels:list:p:{request.PageNumber}" +
+                    $":t:{request.Term ?? "all"}" +
+                    $":st:{request.Street ?? "all"}" +
+                    $":ct:{request.City ?? "all"}" +
+                    $":cn:{request.Country ?? "all"}" +
+                    $":s:{request.State ?? "all"}" +
+                    $":maxr:{request.MaxRating ?? 0}" +
+                    $":minr:{request.MinRating ?? 0}" +
+                    $":maxp:{request.MaxRoomPrice ?? 0}" +
+                    $":minp:{request.MinRoomPrice ?? 0}" +
+                    $":d:{request.Deleted ?? false}";
 
-        return await queryable.ToPaginatedResultAsync(request.PageNumber, h => new HotelResponseDto(
-                h.Id,
-                h.Name,
-                h.Address,
-                h.StarRating,
-                h.Amenities,
-                h.Rooms.Select(r => new RoomResponseDto(
-                    r.Id,
-                    r.HotelId,
-                    r.Code,
-                    r.Type,
-                    r.Capacity,
-                    r.PricePerNight,
-                    r.IsAvailable
-                )).ToList()
-            ));
-
+        return await cache.GetOrCreateAsync(
+            cacheKey, // chave composta
+            async ct => await queryable
+                .ToPaginatedResultAsync(
+                    request.PageNumber,
+                    h => HotelMapper.ToDto(h),
+                    cancellationToken: ct
+                ),
+            tags: [LIST_CACHE_TAG]
+        );
     }
 
-    public async Task<Hotel> Update(PatchHotelDto request)
+    public async Task<HotelResponseDto> Update(PatchHotelDto request)
     {
         var entity = await context.Hotels
             .FirstOrDefaultAsync(h => h.Id == request.HotelId)
@@ -145,22 +159,64 @@ public class HotelService(
 
         await context.SaveChangesAsync();
 
-        return entity;
+        var hotelDto = HotelMapper.ToDto(entity);
+        
+        await cache.RemoveAsync($"hotel:{request.HotelId}");
+        await cache.RemoveByTagAsync(LIST_CACHE_TAG);
+        await cache.SetAsync(
+            $"hotel:{entity.Id}",
+            hotelDto,
+            tags: [CACHE_TAG]
+        );
+
+        return hotelDto;
     }
 
-    public Task<Hotel> Restore(Guid id)
+    public async Task Restore(Guid id)
     {
-        throw new NotImplementedException();
+        var entity = await context.Hotels
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(h => h.Id == id)
+            ?? throw new NullReferenceException($"Hotel de Id = {id} não encontrado");
+
+        entity.IsDeleted = false;
+
+        await context.SaveChangesAsync();
+
+        await cache.RemoveByTagAsync(LIST_CACHE_TAG);
+        await cache.SetAsync(
+            $"hotel:{entity.Id}",
+            HotelMapper.ToDto(entity),
+            tags: [CACHE_TAG]
+        );
     }
 
-    public Task SoftDelete(Guid id)
+    public async Task SoftDelete(Guid id)
     {
-        throw new NotImplementedException();
+        var entity = await context.Hotels
+            .FirstOrDefaultAsync(h => h.Id == id)
+            ?? throw new NullReferenceException($"Hotel de Id = {id} não encontrado");
+
+        entity.IsDeleted = true;
+        await cache.RemoveAsync($"hotel:{entity.Id}");
+        await cache.RemoveByTagAsync(LIST_CACHE_TAG);
+
+        await context.SaveChangesAsync();
     }
 
-    public Task HardDelete(Guid id)
+    public async Task HardDelete(Guid id)
     {
-        throw new NotImplementedException();
+        var entity = await context.Hotels
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(h => h.Id == id)
+            ?? throw new NullReferenceException($"Hotel de Id = {id} não encontrado");
+
+        context.Hotels.Remove(entity);
+        
+        await cache.RemoveAsync($"hotel:{id}");
+        await cache.RemoveByTagAsync(LIST_CACHE_TAG);
+
+        await context.SaveChangesAsync();
     }
 
 }

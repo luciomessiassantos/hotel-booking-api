@@ -2,10 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BookingAPI.src.Shared.Utils;
 
-public abstract class AuditableEntity
+public abstract class AuditableEntity<TKey>
 {
     // UUID por padrão
-    public Guid Id { get; }
+    public TKey Id { get; } = default!;
 
     // dados de auditoria
     public DateTimeOffset CreatedAt { get; set; }

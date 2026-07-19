@@ -3,7 +3,7 @@ using BookingAPI.src.Shared.Utils;
 
 namespace BookingAPI.src.Modules.Booking.Domain;
 
-public class Room : AuditableEntity
+public class Room : AuditableEntity<Guid>
 {
 
     public Guid HotelId { get; set; }
@@ -15,4 +15,5 @@ public class Room : AuditableEntity
     public bool IsAvailable { get; set; }
 
     public List<Reservation> Reservations { get; set; } = [];
+
 }

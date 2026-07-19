@@ -4,13 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BookingAPI.src.Modules.Booking.Infrastructure;
 
-public class BookingDbContext : ApplicationDbContext
+public class BookingDbContext(DbContextOptions<BookingDbContext> options) : DbContext(options)
 {
-    public BookingDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {   }
-
-    // public BookingDbContext(DbContextOptions<BookingDbContext> options) : base(options) { }
-
     public DbSet<Hotel> Hotels => Set<Hotel>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Guest> Guests => Set<Guest>();
@@ -32,36 +27,36 @@ public class BookingDbContext : ApplicationDbContext
     }
 
 
-    // private static void ConfigureAuditableEntity<T>(ModelBuilder modelBuilder, string tableName)
-    //     where T : AuditableEntity<Guid>
-    // {
-    //     modelBuilder.Entity<T>(entity =>
-    //     {
-    //         entity.ToTable(tableName);
+    private static void ConfigureAuditableEntity<T, TKey>(ModelBuilder modelBuilder, string tableName)
+        where T : AuditableEntity<TKey>
+    {
+        modelBuilder.Entity<T>(entity =>
+        {
+            entity.ToTable(tableName);
 
-    //         entity.HasKey(e => e.Id);
+            entity.HasKey(e => e.Id);
 
-    //         entity.Property(e => e.CreatedAt)
-    //             .IsRequired();
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
 
-    //         entity.Property(e => e.UpdatedAt)
-    //             .IsRequired();
+            entity.Property(e => e.UpdatedAt)
+                .IsRequired();
 
-    //         entity.Property(e => e.RowVersion)
-    //             .IsRowVersion()
-    //             .IsConcurrencyToken();
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
 
-    //         entity.Property(e => e.IsDeleted)
-    //             .IsRequired()
-    //             .HasDefaultValue(false);
+            entity.Property(e => e.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
 
-    //         entity.Property(e => e.DeletedAt);
-    //         entity.Property(e => e.DeletedBy);
+            entity.Property(e => e.DeletedAt);
+            entity.Property(e => e.DeletedBy);
 
 
-    //         entity.HasQueryFilter(e => !e.IsDeleted);
-    //     });
-    // }
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+    }
 
 
 

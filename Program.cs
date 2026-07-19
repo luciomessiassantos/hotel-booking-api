@@ -32,6 +32,11 @@ builder.Services.AddHybridCache(options =>
 
 builder.Services.AddScoped<IHotelService, HotelService>();
 
+builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IGuestService, GuestService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

@@ -1,3 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace BookingAPI.src.Modules.Booking.Domain.Enums;
 
-public enum RoomType { Single, Double, Triple, Suite }
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum RoomType { 
+    Single, 
+    Double, 
+    Triple, 
+    Suite 
+}
